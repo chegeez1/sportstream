@@ -5,9 +5,10 @@ interface LeagueSectionProps {
   leagueName: string;
   matches: Match[];
   sport?: string;
+  fetchedAt?: number;
 }
 
-export function LeagueSection({ leagueName, matches, sport }: LeagueSectionProps) {
+export function LeagueSection({ leagueName, matches, sport, fetchedAt }: LeagueSectionProps) {
   const liveCount = matches.filter((m) => m.status === "in-progress").length;
 
   return (
@@ -21,7 +22,11 @@ export function LeagueSection({ leagueName, matches, sport }: LeagueSectionProps
           )}
           <h2 className="text-base font-bold text-foreground">{leagueName}</h2>
           {liveCount > 0 && (
-            <span className="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 rounded px-1.5 py-0.5">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+              </span>
               {liveCount} LIVE
             </span>
           )}
@@ -31,7 +36,7 @@ export function LeagueSection({ leagueName, matches, sport }: LeagueSectionProps
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {matches.map((match) => (
-          <MatchCard key={match.id} match={match} />
+          <MatchCard key={match.id} match={match} fetchedAt={fetchedAt} />
         ))}
       </div>
     </section>

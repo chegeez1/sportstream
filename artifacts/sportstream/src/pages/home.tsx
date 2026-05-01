@@ -130,6 +130,7 @@ export default function Home() {
                 leagueName={leagueName}
                 matches={matches}
                 sport="soccer"
+                fetchedAt={soccerQuery.dataUpdatedAt}
               />
             ))}
 
@@ -139,6 +140,7 @@ export default function Home() {
                 leagueName="NBA"
                 matches={basketballMatches}
                 sport="basketball"
+                fetchedAt={basketballQuery.dataUpdatedAt}
               />
             )}
           </>

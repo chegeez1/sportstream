@@ -39,10 +39,10 @@ export default function FootballPage() {
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-black text-foreground">Football</h1>
             {liveCount > 0 && (
-              <span className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold rounded-full px-3 py-1">
+              <span className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full px-3 py-1">
                 <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
                 </span>
                 {liveCount} Live
               </span>
@@ -77,7 +77,7 @@ export default function FootballPage() {
           <EmptyState />
         ) : (
           Array.from(byLeague.entries()).map(([leagueId, { leagueName, matches: leagueMatches }]) => (
-            <LeagueSection key={leagueId} leagueName={leagueName} matches={leagueMatches} />
+            <LeagueSection key={leagueId} leagueName={leagueName} matches={leagueMatches} fetchedAt={query.dataUpdatedAt} />
           ))
         )}
       </div>
