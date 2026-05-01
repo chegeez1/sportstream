@@ -128,63 +128,60 @@ function Stat({ label, value, icon: Icon, color = "primary" }: {
 
 // ── Live Match Card ──────────────────────────────────────
 interface TickedMatch extends Match {
-  _tickSecs?: number;   // current interpolated clock in seconds
-  _isCountdown?: boolean; // basketball counts down
-  _fetchedAt?: number;  // Date.now() when fetched
+  _fetchedAt?: number;
 }
 
 function LiveMatchCard({ m }: { m: TickedMatch }) {
-  const [displayClock, setDisplayClock] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (m.status !== "in-progress" || !m.clock) {
-      setDisplayClock(null);
-      return;
-    }
-
-    const fetchedAt = m._fetchedAt ?? Date.now();
-    const isBasketball = m.sport === "basketball";
-
-    let baseSecs: number | null = null;
-    if (isBasketball) {
-      baseSecs = m._tickSecs ?? parseBasketballClockSecs(m.clock ?? "");
-    } else {
-      baseSecs = m._tickSecs ?? parseSoccerClockSecs(m.clock ?? "");
-    }
-
-    if (baseSecs === null) { setDisplayClock(m.clock ?? null); return; }
-
-    const tick = () => {
-      const elapsed = Math.floor((Date.now() - fetchedAt) / 1000);
-      let current: number;
-      if (isBasketball) {
-        current = Math.max(0, baseSecs! - elapsed);
-      } else {
-        const halfMax = (m.period ?? 1) <= 1 ? 45 * 60 : 90 * 60;
-        current = Math.min(baseSecs! + elapsed, halfMax + 5 * 60);
-      }
-      setDisplayClock(isBasketball ? secsToMSS(current) : secsToPrime(current));
-    };
-
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [m]);
-
+  const [clockSecs, setClockSecs] = useState<number | null>(null);
   const isLive = m.status === "in-progress";
   const isFinal = m.status === "final";
   const isBasketball = m.sport === "basketball";
 
-  // Time remaining for soccer
-  const soccerRem = (() => {
-    if (!isLive || isBasketball || !displayClock) return null;
-    const mins = parseInt(displayClock.replace(/'.*/g, ""), 10);
-    if (isNaN(mins)) return null;
-    const halfEnd = (m.period ?? 1) <= 1 ? 45 : 90;
-    const rem = halfEnd - mins;
-    if (rem < 0) return null;
-    return rem === 0 ? "Full time" : `${rem} min${rem !== 1 ? "s" : ""} left`;
-  })();
+  // Tick the clock every second from the fetched baseline
+  useEffect(() => {
+    if (!isLive || !m.clock) { setClockSecs(null); return; }
+    const fetchedAt = m._fetchedAt ?? Date.now();
+    const base = isBasketball
+      ? parseBasketballClockSecs(m.clock)
+      : parseSoccerClockSecs(m.clock);
+    if (base === null) { setClockSecs(null); return; }
+
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - fetchedAt) / 1000);
+      if (isBasketball) {
+        setClockSecs(Math.max(0, base - elapsed));
+      } else {
+        const halfMax = (m.period ?? 1) <= 1 ? 45 * 60 : 90 * 60;
+        setClockSecs(Math.min(base + elapsed, halfMax + 5 * 60));
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [m, isLive, isBasketball]);
+
+  // Derived display values
+  const clockDisplay = clockSecs === null
+    ? (m.clock ?? null)
+    : isBasketball ? secsToMSS(clockSecs) : secsToPrime(clockSecs);
+
+  const minutesElapsed = clockSecs !== null && !isBasketball
+    ? Math.floor(clockSecs / 60) : null;
+
+  const minsRemInHalf = minutesElapsed !== null
+    ? Math.max(0, ((m.period ?? 1) <= 1 ? 45 : 90) - minutesElapsed)
+    : null;
+
+  // Countdown for scheduled matches
+  const [startsInSecs, setStartsInSecs] = useState<number | null>(null);
+  useEffect(() => {
+    if (m.status !== "scheduled" || !m.startTime) { setStartsInSecs(null); return; }
+    const kick = new Date(m.startTime).getTime();
+    const update = () => setStartsInSecs(Math.max(0, Math.floor((kick - Date.now()) / 1000)));
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [m.status, m.startTime]);
 
   const startLocal = m.startTime
     ? new Date(m.startTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
@@ -192,78 +189,87 @@ function LiveMatchCard({ m }: { m: TickedMatch }) {
   const startDate = m.startTime
     ? new Date(m.startTime).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
     : null;
+  const startsInLabel = startsInSecs !== null
+    ? startsInSecs < 3600
+      ? `Starts in ${Math.ceil(startsInSecs / 60)}m`
+      : `Starts in ${Math.floor(startsInSecs / 3600)}h ${Math.floor((startsInSecs % 3600) / 60)}m`
+    : null;
 
   return (
     <div className={cn(
-      "bg-card border rounded-xl overflow-hidden transition-all",
-      isLive ? "border-emerald-500/30" : "border-card-border"
+      "rounded-xl overflow-hidden border transition-all relative",
+      isLive
+        ? "border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.08)]"
+        : isFinal
+        ? "border-border"
+        : "border-blue-500/25"
     )}>
-      {/* Status bar */}
+      {/* Left live stripe */}
+      {isLive && (
+        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-400" />
+      )}
+
+      {/* Top: League + Status chips */}
       <div className={cn(
-        "flex items-center justify-between px-3 py-1.5 text-[10px] font-bold border-b",
-        isLive
-          ? "bg-emerald-500/8 border-emerald-500/20 text-emerald-400"
-          : isFinal
-          ? "bg-secondary/50 border-border text-muted-foreground"
-          : "bg-blue-500/5 border-blue-500/15 text-blue-400"
+        "flex items-center justify-between px-3 pt-2.5 pb-1.5",
+        isLive ? "bg-[hsl(220_18%_10%)]" : "bg-card"
       )}>
-        <div className="flex items-center gap-2">
-          {isLive && <StatusDot connected />}
-          <span className="uppercase tracking-wider">
-            {isLive
-              ? (m.period ? periodLabel(m.sport, m.period) : "Live")
-              : (m.statusDetail || m.status)}
-          </span>
-          {isLive && m.leagueName && (
-            <span className="text-muted-foreground/60 font-normal">· {m.leagueName}</span>
+        <span className="text-[10px] text-muted-foreground/60 truncate">{m.leagueName}</span>
+
+        {/* Status chips */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {isLive && (
+            <>
+              {/* Pulsing LIVE badge */}
+              <span className="flex items-center gap-1 text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                </span>
+                LIVE
+              </span>
+              {/* Period */}
+              {m.period && (
+                <span className="text-[10px] font-bold bg-secondary border border-border rounded-full px-2 py-0.5 text-muted-foreground">
+                  {periodLabel(m.sport, m.period)}
+                </span>
+              )}
+            </>
           )}
-        </div>
-        <div className="flex items-center gap-3">
-          {isLive && displayClock && (
-            <span className="flex items-center gap-1 font-mono text-[11px]">
-              <Clock className="h-2.5 w-2.5" />
-              {displayClock}
+          {isFinal && (
+            <span className="text-[10px] font-bold bg-secondary border border-border rounded-full px-2 py-0.5 text-muted-foreground">FINAL</span>
+          )}
+          {!isLive && !isFinal && startsInLabel && (
+            <span className="text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/25 rounded-full px-2 py-0.5">
+              {startsInLabel}
             </span>
           )}
-          {isLive && soccerRem && (
-            <span className="flex items-center gap-1 text-muted-foreground font-normal">
-              <Timer className="h-2.5 w-2.5" />
-              {soccerRem}
-            </span>
-          )}
-          {isLive && isBasketball && displayClock && (
-            <span className="flex items-center gap-1 text-muted-foreground font-normal">
-              <Timer className="h-2.5 w-2.5" />
-              {displayClock} left
-            </span>
-          )}
-          {!isLive && !isFinal && startLocal && (
-            <span className="flex items-center gap-1 text-muted-foreground font-normal">
-              <Calendar className="h-2.5 w-2.5" />
-              {startDate} {startLocal}
+          {!isLive && !isFinal && !startsInLabel && startLocal && (
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded-full px-2 py-0.5">
+              <Calendar className="h-2.5 w-2.5" />{startDate} {startLocal}
             </span>
           )}
         </div>
       </div>
 
-      {/* Match content */}
-      <div className="p-3 space-y-1.5">
-        {[
-          { team: m.homeTeam, label: "Home" },
-          { team: m.awayTeam, label: "Away" },
-        ].map(({ team }) => (
-          <div key={team.name} className="flex items-center gap-2.5">
-            <div className="w-6 h-6 shrink-0 flex items-center justify-center">
+      {/* Main: teams + scores */}
+      <div className={cn("px-3 py-2", isLive ? "bg-[hsl(220_18%_10%)]" : "bg-card")}>
+        {([
+          { team: m.homeTeam, side: "Home" },
+          { team: m.awayTeam, side: "Away" },
+        ] as const).map(({ team }) => (
+          <div key={team.name} className="flex items-center gap-2.5 py-1">
+            <div className="w-7 h-7 shrink-0 flex items-center justify-center">
               {team.logo
-                ? <img src={team.logo} alt={team.abbreviation} className="w-5 h-5 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                : <span className="text-[10px] font-bold text-muted-foreground">{team.abbreviation?.slice(0, 3)}</span>
+                ? <img src={team.logo} alt={team.abbreviation} className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                : <span className="text-[10px] font-black text-muted-foreground bg-secondary rounded px-1">{team.abbreviation?.slice(0, 3)}</span>
               }
             </div>
             <span className="flex-1 text-sm font-semibold text-foreground truncate">{team.name}</span>
             {team.score != null && (
               <span className={cn(
-                "text-xl font-black tabular-nums w-8 text-right leading-none",
-                isLive ? "text-primary" : "text-foreground"
+                "text-2xl font-black tabular-nums leading-none min-w-[1.5rem] text-right",
+                isLive ? "text-primary" : "text-foreground/80"
               )}>
                 {team.score}
               </span>
@@ -272,9 +278,52 @@ function LiveMatchCard({ m }: { m: TickedMatch }) {
         ))}
       </div>
 
-      {/* Footer: venue */}
+      {/* Live time bar — only for in-progress */}
+      {isLive && clockDisplay && (
+        <div className="bg-emerald-950/40 border-t border-emerald-500/20 px-3 py-2 flex items-center justify-between gap-3">
+          {/* Big clock */}
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3 text-emerald-400 shrink-0" />
+            <span className="font-mono font-black text-emerald-400 text-base leading-none">
+              {clockDisplay}
+            </span>
+            {!isBasketball && minutesElapsed !== null && (
+              <span className="text-[11px] text-emerald-400/70 font-semibold">
+                {minutesElapsed} min played
+              </span>
+            )}
+            {isBasketball && (
+              <span className="text-[11px] text-emerald-400/70 font-semibold">remaining</span>
+            )}
+          </div>
+
+          {/* Time remaining in half (soccer) */}
+          {!isBasketball && minsRemInHalf !== null && (
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Timer className="h-3 w-3 shrink-0" />
+              {minsRemInHalf > 0
+                ? <span><span className="font-bold text-foreground">{minsRemInHalf}</span> min{minsRemInHalf !== 1 ? "s" : ""} left in half</span>
+                : <span className="text-amber-400 font-bold">Stoppage time</span>
+              }
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scheduled: kick-off time bar */}
+      {!isLive && !isFinal && startLocal && (
+        <div className="bg-blue-500/5 border-t border-blue-500/15 px-3 py-1.5 flex items-center gap-1.5 text-[10px] text-blue-400/80">
+          <Calendar className="h-3 w-3 shrink-0" />
+          <span>Kick-off {startDate} at {startLocal}</span>
+        </div>
+      )}
+
+      {/* Venue */}
       {m.venue && (
-        <div className="px-3 pb-2 flex items-center gap-1 text-[10px] text-muted-foreground/60">
+        <div className={cn(
+          "px-3 py-1.5 flex items-center gap-1 text-[10px] text-muted-foreground/50 border-t",
+          isLive ? "border-emerald-500/10 bg-[hsl(220_18%_10%)]" : "border-border bg-card"
+        )}>
           <MapPin className="h-2.5 w-2.5 shrink-0" />
           <span className="truncate">{m.venue}</span>
         </div>
