@@ -28,13 +28,33 @@ export interface ScoreboardResponse {
   matches: Match[];
 }
 
+/**
+ * Derives the API base URL from the current page's origin so the app works
+ * on any domain — dev, staging, or production — without changes.
+ */
+export function getApiBase(): string {
+  if (typeof window === "undefined") return "/api";
+  return `${window.location.origin}/api`;
+}
+
+/**
+ * Derives the WebSocket URL from the current page's origin.
+ * Automatically uses wss:// on HTTPS and ws:// on HTTP.
+ */
+export function getWsUrl(path = "/api/ws"): string {
+  if (typeof window === "undefined") return `ws://localhost/api/ws`;
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}${path}`;
+}
+
 export async function fetchScoreboard(
   sport: "soccer" | "basketball",
   league?: string,
 ): Promise<ScoreboardResponse> {
+  const base = getApiBase();
   const url = league
-    ? `/api/sports/${sport}/scoreboard?league=${league}`
-    : `/api/sports/${sport}/scoreboard`;
+    ? `${base}/sports/${sport}/scoreboard?league=${league}`
+    : `${base}/sports/${sport}/scoreboard`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch scoreboard: ${res.status}`);
   return res.json();
@@ -45,9 +65,10 @@ export async function fetchMatch(
   id: string,
   league?: string,
 ): Promise<Match> {
+  const base = getApiBase();
   const url = league
-    ? `/api/sports/${sport}/matches/${id}?league=${league}`
-    : `/api/sports/${sport}/matches/${id}`;
+    ? `${base}/sports/${sport}/matches/${id}?league=${league}`
+    : `${base}/sports/${sport}/matches/${id}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch match: ${res.status}`);
   return res.json();

@@ -4,6 +4,7 @@ import {
   Users, TrendingUp, Circle, Timer, MapPin, Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getApiBase, getWsUrl } from "@/lib/api";
 
 // ── Types ────────────────────────────────────────────────
 interface WsEvent {
@@ -359,7 +360,7 @@ function LiveScoreboard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/sports/${sport}/scoreboard`);
+      const res = await fetch(`${getApiBase()}/v1/sports/${sport}/scoreboard`);
       const json = await res.json();
       if (json.ok) {
         const now = Date.now();
@@ -531,7 +532,7 @@ function ServerHealth() {
   const fetchStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/status");
+      const res = await fetch(`${getApiBase()}/v1/status`);
       const json = await res.json();
       if (json.ok) { setStatus(json.data); startCountdown(10); }
     } finally {
@@ -646,8 +647,7 @@ function WsMonitor() {
 
   const connect = useCallback(() => {
     if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
-    const protocol = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${protocol}://${location.host}/api/ws`);
+    const ws = new WebSocket(getWsUrl("/api/ws"));
     wsRef.current = ws;
     ws.onopen = () => { setConnected(true); addEvent("connected", "WebSocket connection established"); };
     ws.onmessage = (e) => {

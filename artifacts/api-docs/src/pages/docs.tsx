@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { LiveAnalysis } from "@/components/LiveAnalysis";
 import { MATCH_EXAMPLE } from "@/lib/content";
 import { cn } from "@/lib/utils";
+import { getHost, getApiBase, getWsUrl } from "@/lib/api";
 
 function Section({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) {
   return (
@@ -109,6 +110,9 @@ function EndpointHeader({ method, path, description }: { method: "GET" | "WS"; p
 
 export default function DocsPage({ activeId, setActiveId }: { activeId: string; setActiveId: (id: string) => void }) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const host = getHost();
+  const apiBase = getApiBase();
+  const wsUrl = getWsUrl("/api/ws");
 
   // Observe which section is in view
   useEffect(() => {
@@ -181,7 +185,7 @@ export default function DocsPage({ activeId, setActiveId }: { activeId: string; 
             <CodeBlock
               language="bash"
               title="Base URL"
-              code={`https://{your-domain}/api/v1`}
+              code={`${apiBase}/v1`}
             />
             <div className="mt-4 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
               <p className="text-sm text-amber-400/90">
@@ -242,10 +246,7 @@ export default function DocsPage({ activeId, setActiveId }: { activeId: string; 
             <CodeBlock
               language="javascript"
               className="mt-3"
-              code={`// Works directly in the browser — no proxy needed
-const res = await fetch('https://{your-domain}/api/v1/sports/soccer/scoreboard');
-const { ok, data } = await res.json();
-console.log(data.matches); // Live match array`}
+              code={`// Works directly in the browser — no proxy needed\nconst res = await fetch('${apiBase}/v1/sports/soccer/scoreboard');\nconst { ok, data } = await res.json();\nconsole.log(data.matches); // Live match array`}
             />
           </Section>
 
@@ -377,7 +378,7 @@ console.log(data.matches); // Live match array`}
                 meta: {
                   timestamp: "2024-05-01T19:07:30.000Z",
                   note: "Data refreshes every 30 seconds from ESPN.",
-                  websocket: "wss://{host}/api/ws — subscribe for live push updates",
+                  websocket: `${wsUrl} — subscribe for live push updates`,
                 },
               }, null, 2)}
             />
@@ -464,7 +465,7 @@ console.log(data.matches); // Live match array`}
             <SectionTitle>WebSocket</SectionTitle>
             <EndpointHeader
               method="WS"
-              path="wss://{host}/api/ws"
+              path={wsUrl}
               description="Connect to receive live score push updates the moment they happen — no polling required. The server broadcasts score changes every 30 seconds."
             />
             <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl mb-4">
@@ -520,7 +521,7 @@ ws.onclose = () => {
               title="Node.js client (ws package)"
               code={`import WebSocket from 'ws';
 
-const ws = new WebSocket('wss://your-domain/api/ws');
+const ws = new WebSocket('${wsUrl}');
 
 ws.on('message', (data) => {
   const msg = JSON.parse(data.toString());
