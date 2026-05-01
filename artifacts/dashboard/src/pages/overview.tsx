@@ -50,7 +50,7 @@ export default function Overview() {
               {stats.requests.total.toLocaleString()}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {(stats.requests.total / Math.max(1, stats.uptime / 60)).toFixed(2)} req/min
+              {(stats.requests.total / Math.max(1, stats.uptimeMs / 60000)).toFixed(2)} req/min
             </p>
           </CardContent>
         </Card>
@@ -62,7 +62,7 @@ export default function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground font-mono" data-testid="stats-success-rate">
-              {(stats.requests.successRate * 100).toFixed(2)}%
+              {stats.requests.successRate.toFixed(2)}%
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {stats.requests.errors.toLocaleString()} errors total
@@ -92,7 +92,7 @@ export default function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground font-mono" data-testid="stats-uptime">
-              {(stats.uptime / 60).toFixed(0)}m
+              {stats.uptime}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               Running continuously
