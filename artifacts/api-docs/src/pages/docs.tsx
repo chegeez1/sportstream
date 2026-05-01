@@ -3,6 +3,7 @@ import { CodeBlock } from "@/components/CodeBlock";
 import { MethodBadge } from "@/components/MethodBadge";
 import { TryIt } from "@/components/TryIt";
 import { Sidebar } from "@/components/Sidebar";
+import { LiveAnalysis } from "@/components/LiveAnalysis";
 import { MATCH_EXAMPLE } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
@@ -528,6 +529,15 @@ ws.on('message', (data) => {
   }
 });`}
             />
+          </Section>
+
+          {/* ── Live Analysis ── */}
+          <Section id="live-analysis">
+            <SectionTitle>⚡ Live Analysis</SectionTitle>
+            <p className="text-muted-foreground text-sm mb-6">
+              Interactive panels that connect to the real SportStream API — monitor server health, watch live scores update, and observe raw WebSocket messages as they stream in.
+            </p>
+            <LiveAnalysis />
           </Section>
 
           {/* ── Rate Limits ── */}

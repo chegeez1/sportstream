@@ -44,6 +44,7 @@ export const NAV: NavSection[] = [
     title: "Real-Time",
     items: [
       { id: "websocket", label: "WebSocket" },
+      { id: "live-analysis", label: "⚡ Live Analysis" },
     ],
   },
   {
